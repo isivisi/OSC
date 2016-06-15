@@ -24,6 +24,8 @@ class device:
         self.rawStream = sounddevice.RawStream()
         self.currRawData = []
 
+        self.streamCallback = 0 # function to be called during stream
+
     # audio callback
     def callback(self, indata, outdata, frames, time, status):
         if self.active:
@@ -33,12 +35,18 @@ class device:
 
         self.currRawData = outdata
 
-        if status:
-            print("[%s] frames: %s, status: %s" %(self.name, frames, time, status))
+        #if status:
+        #    print("[%s] frames: %s, status: %s, time: %s, status: %s" %(self.name, frames, time, status))
+
+        if (self.streamCallback != 0):
+            self.streamCallback()
 
     # get average of waveform at current time
     def getDeviceAvg(self):
-        return audioop.avg(self.currRawData, 1)
+        try:
+            return audioop.avg(self.currRawData, 1)
+        except:
+            return -100
 
     def stream(self, out):
         try:
@@ -89,7 +97,9 @@ class DeviceController:
             self.activeDevices.remove(dev)
 
     def getDevice(self, id):
-        return [d for d in self.deviceList if d.id == id]
+        dlist = [d for d in self.deviceList if d.id == id]
+        for dev in dlist:
+            return dev
 
     def setOutputDevice(self, id):
         devList = [d for d in self.deviceList if d.id == id and d.getType() == "output"]

@@ -10,6 +10,9 @@ pipimport("sounddevice", "sounddevice>=0.3.3")
 import sounddevice as sd
 from devicecontroller import *
 
+def lerp(begin, end, time):
+    return begin + time*(end-begin)
+
 def main():
     print("Starting osm")
 
@@ -73,6 +76,9 @@ class ui(tk.Frame):
 
         # output
         self.addOutput(self.device.outputDevice)
+        #test
+        self.addDevice(audioDevice=self.device.getDevice(8))
+        self.addDevice(audioDevice=self.device.getDevice(3))
 
         # status bar
         #self.statusBar = tk.Label(self.bottomFrame, text="Initial load", bd=1, relief=tk.SUNKEN, anchor=tk.E)
@@ -104,8 +110,8 @@ class ui(tk.Frame):
         quit()
 
     # adds empty audio device to ui
-    def addDevice(self):
-        ad = uiAudioDevice(master=self.devicesFrame, device=self.device)
+    def addDevice(self, audioDevice=None):
+        ad = uiAudioDevice(master=self.devicesFrame, device=self.device, audioDevice=audioDevice)
         self.audioDevices.append(ad)
         ad.grid(row=0, column=len(self.audioDevices), sticky="w")
         self.positionOut()
@@ -126,6 +132,9 @@ class uiAudioDevice(tk.Frame):
         tk.Frame.__init__(self, master, width=100, height=300)
 
         self.volumeSize = 250
+        self.prevAvg = [0, 0]
+        self.currAvg = [0, 0]
+        self.updateCount = 0
 
         #self.pack(side="left")
         self.audioDevice = audioDevice
@@ -144,12 +153,11 @@ class uiAudioDevice(tk.Frame):
         self.volume.grid(row=1, column=0)
         self.volume.create_rectangle(2, 0, 26, self.volumeSize, fill="#d3d3d3")
         self.volume.create_rectangle(26, 0, 50, self.volumeSize, fill="#d3d3d3")
-        self.leftChannel = self.volume.create_rectangle(2, 200, 26, self.volumeSize, fill="#66ff00")
-        self.rightChannel = self.volume.create_rectangle(26, 200, 50, self.volumeSize, fill="#66ff00")
+        self.leftChannel = self.volume.create_rectangle(2, 1000, 26, self.volumeSize, fill="#66ff00")
+        self.rightChannel = self.volume.create_rectangle(26, 1000, 50, self.volumeSize, fill="#66ff00")
 
         self.volumeScale = tk.Scale(self, from_=100, to=0, orient="vertical")
         self.volumeScale.grid(row=1, column=1, sticky="w")
-        threading.Thread(target=self.getVolume).start()
 
         self.selectDevice = tk.OptionMenu(self, "Empty", tuple(self.device.deviceList))
         self.selectDevice.grid(row=2, columnspan=2, sticky="ew")
@@ -159,17 +167,37 @@ class uiAudioDevice(tk.Frame):
         #self.toggle.pack(fill=tk.X)
 
         if (self.audioDevice != None):
-            self.title.config(text=self.audioDevice.name)
+            self.title.config(text=self.audioDevice.name, width=20)
+            self.device.enableDevice(self.audioDevice.id)
+            self.audioDevice.streamCallback = self.onUpdate
 
     def toggleDevice(self):
         self.audioDevice.active = not self.audioDevice.active
 
-    def getVolume(self):
-        if (self.audioDevice != None and self.audioDevice.getType() != "output"):
+    def onUpdate(self):
+        if (self.audioDevice != None):
             self.audioDevice.volume = self.volumeScale.get() * 0.01
-            avg = self.audioDevice.getDeviceAvg()
-            self.leftChannel = self.volume.create_rectangle(avg + 2, avg, 26, self.volumeSize, fill="#66ff00")
-            self.rightChannel = self.volume.create_rectangle(avg + 26, avg, 50, self.volumeSize, fill="#66ff00")
+            #avg = -self.audioDevice.getDeviceAvg() * 10
+            self.updateCount += 0.3
+            if (self.updateCount >= 1):
+                left = []
+                right = []
+                for value in self.audioDevice.currRawData:
+                    left.append(abs(value[0]))
+                    right.append(abs(value[0]))
+                self.prevAvg = self.currAvg
+                self.currAvg = [(sum(left) / len(left)) * 10000, (sum(right) / len(right)) * 10000]
+                self.updateCount = 0
+            else:
+                left = lerp(self.prevAvg[0], self.currAvg[0], self.updateCount)
+                right = lerp(self.prevAvg[1], self.currAvg[1], self.updateCount)
+                self.moveTowards(left, right)
+
+    def moveTowards(self, left, right):
+        #self.volume.delete(self.leftChannel)
+        #self.volume.delete(self.rightChannel)
+        self.volume.coords(self.leftChannel, 2, self.volumeSize - left, 26, self.volumeSize)
+        self.volume.coords(self.rightChannel, 26, self.volumeSize - right, 50, self.volumeSize)
 
     def setDevice(self, id):
         devs = self.device.getDevice(id)
