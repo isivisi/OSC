@@ -1,5 +1,6 @@
 import pip
 
+# installs package via pip if not already installed
 def pipimport(packageName, pipInfo):
     try:
         __import__(packageName)

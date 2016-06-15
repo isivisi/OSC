@@ -24,9 +24,7 @@ class device:
         self.rawStream = sounddevice.RawStream()
         self.currRawData = []
 
-    def __cmp__(self, other):
-        return other == self.id
-
+    # audio callback
     def callback(self, indata, outdata, frames, time, status):
         if self.active:
             outdata[:] = indata * self.volume;
@@ -38,6 +36,7 @@ class device:
         if status:
             print("[%s] frames: %s, status: %s" %(self.name, frames, time, status))
 
+    # get average of waveform at current time
     def getDeviceAvg(self):
         return audioop.avg(self.currRawData, 1)
 
@@ -49,6 +48,7 @@ class device:
         except sounddevice.PortAudioError as e:
             print("Port audio error for (" + self.name + ") " + str(e))
 
+    # start a sounddevice stream in a new thread (this might not be needed anymore)
     def startStream(self, out):
         threading.Thread(target=self.stream, args=(out,)).start()
 
@@ -58,21 +58,20 @@ class device:
         else:
             return "input"
 
-
+# A controller for all devices
 class DeviceController:
-    def __init__(self, sounddev):
+    def __init__(self):
 
-        self.sd = sounddev
         self.deviceList = []
         self.activeDevices = []
 
         self.outputDevice = []
 
-        self.getDevices()
+        self.initDevices()
 
-    def getDevices(self):
+    def initDevices(self):
         id = 0
-        for dev in self.sd.query_devices():
+        for dev in sounddevice.query_devices():
             print(str(id) + " " + str(dev))
             self.deviceList.append(device(dev, id))
             id += 1
@@ -84,20 +83,33 @@ class DeviceController:
             self.activeDevices.append(dev)
             dev.startStream(self.outputDevice)
 
+    def disableDevice(self, id):
+        devList = [d for d in self.activeDevices if d.id == id]
+        for dev in devList:
+            self.activeDevices.remove(dev)
+
+    def getDevice(self, id):
+        return [d for d in self.deviceList if d.id == id]
+
     def setOutputDevice(self, id):
         devList = [d for d in self.deviceList if d.id == id and d.getType() == "output"]
         if (devList):
             print(devList[0].name + " set to output device")
             self.outputDevice = devList[0]
+        else:
+            print("[error] id " + id + " not found, output device not set")
 
     def getTotalCpuLoad(self):
         totalCpu = 0
         for dev in self.activeDevices:
-            if dev.rawStream.active():
-                totalCpu += dev.rawStream.cpu_load()
+            if dev.active:
+                totalCpu += dev.rawStream.cpu_load
+        return totalCpu
 
+    # TODO average instead of additive
     def getTotalLatency(self):
         totalLat = 0
         for dev in self.activeDevices:
-            if dev.rawStream.active():
+            if dev.active:
                 totalLat += dev.rawStream.latency()
+        return totalLat
