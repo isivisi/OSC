@@ -1,5 +1,7 @@
 import sounddevice
 import threading
+import audioop
+import numpy as np
 
 duration = 5 # seconds
 
@@ -20,18 +22,29 @@ class device:
         self.defaultSamplerate = deviceInfo['default_samplerate']
 
         self.rawStream = sounddevice.RawStream()
+        self.currRawData = []
 
     def __cmp__(self, other):
         return other == self.id
 
     def callback(self, indata, outdata, frames, time, status):
-            outdata[:] = indata;
-            #sounddevice.play(indata, self.defaultSamplerate)
+        if self.active:
+            outdata[:] = indata * self.volume;
+        else:
+            outdata.fill(0)
+
+        self.currRawData = outdata
+
+        if status:
+            print("[%s] frames: %s, status: %s" %(self.name, frames, time, status))
+
+    def getDeviceAvg(self):
+        return audioop.avg(self.currRawData, 1)
 
     def stream(self, out):
         try:
             sounddevice.default.channels = out.maxOutputChannels
-            self.rawStream = sounddevice.RawStream(device=(self.id, out.id), dtype='int32', samplerate=self.defaultSamplerate, channels=(self.maxInputChannels, out.maxOutputChannels), callback=self.callback, latency="low")
+            self.rawStream = sounddevice.Stream(device=(self.id, out.id), samplerate=self.defaultSamplerate, channels=(self.maxInputChannels, out.maxOutputChannels), callback=self.callback, latency="low")
             self.rawStream.start()
         except sounddevice.PortAudioError as e:
             print("Port audio error for (" + self.name + ") " + str(e))
@@ -68,6 +81,7 @@ class DeviceController:
         devList = [d for d in self.deviceList if d.id == id and d.getType() == "input"]
         for dev in devList:
             print(dev.name + "device enabled")
+            self.activeDevices.append(dev)
             dev.startStream(self.outputDevice)
 
     def setOutputDevice(self, id):
@@ -75,3 +89,15 @@ class DeviceController:
         if (devList):
             print(devList[0].name + " set to output device")
             self.outputDevice = devList[0]
+
+    def getTotalCpuLoad(self):
+        totalCpu = 0
+        for dev in self.activeDevices:
+            if dev.rawStream.active():
+                totalCpu += dev.rawStream.cpu_load()
+
+    def getTotalLatency(self):
+        totalLat = 0
+        for dev in self.activeDevices:
+            if dev.rawStream.active():
+                totalLat += dev.rawStream.latency()
