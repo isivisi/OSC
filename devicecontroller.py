@@ -60,6 +60,9 @@ class device:
     def startStream(self, out):
         threading.Thread(target=self.stream, args=(out,)).start()
 
+    def stopStream(self):
+        self.rawStream.stop()
+
     def getType(self):
         if (self.maxOutputChannels > 0):
             return "output"
@@ -94,7 +97,9 @@ class DeviceController:
     def disableDevice(self, id):
         devList = [d for d in self.activeDevices if d.id == id]
         for dev in devList:
+            dev.stopStream()
             self.activeDevices.remove(dev)
+            print(dev.name + "disabled")
 
     def getDevice(self, id):
         dlist = [d for d in self.deviceList if d.id == id]
@@ -107,7 +112,7 @@ class DeviceController:
             print(devList[0].name + " set to output device")
             self.outputDevice = devList[0]
         else:
-            print("[error] id " + id + " not found, output device not set")
+            print("[error] id " + str(id) + " not found, output device not set")
 
     def getTotalCpuLoad(self):
         totalCpu = 0

@@ -20,7 +20,7 @@ def main():
     sd.default.samplerate = 44100
     #sd.default.device = "digital output"
     dc = DeviceController()
-    dc.setOutputDevice(10)
+    #dc.setOutputDevice(10)
     device = dc
 
     # ui
@@ -74,18 +74,13 @@ class ui(tk.Frame):
         self.fileMenu.add_command(label="Exit", command=self.quit)
         self.topBar.add_cascade(label="File", menu=self.fileMenu)
 
-        # output
-        self.addOutput(self.device.outputDevice)
-        #test
-        self.addDevice(audioDevice=self.device.getDevice(8))
-        self.addDevice(audioDevice=self.device.getDevice(3))
-
         # status bar
         #self.statusBar = tk.Label(self.bottomFrame, text="Initial load", bd=1, relief=tk.SUNKEN, anchor=tk.E)
         #self.statusBar.grid(sticky="e")
 
         self.editMenu = tk.Menu(self.topBar)
-        self.editMenu.add_command(label="Add Device", command=self.addDevice)
+        self.editMenu.add_command(label="Add Input Device", command=self.addDevice)
+        self.editMenu.add_command(label="Add Output Device", command=self.addOutput)
         self.topBar.add_cascade(label="Edit", menu=self.editMenu)
 
         #self.quit = tk.Button(self.middleFrame, text="+", fg="black", command=self.addDevice)
@@ -111,13 +106,19 @@ class ui(tk.Frame):
 
     # adds empty audio device to ui
     def addDevice(self, audioDevice=None):
-        ad = uiAudioDevice(master=self.devicesFrame, device=self.device, audioDevice=audioDevice)
+        ad = uiAudioDevice(master=self.devicesFrame, device=self.device, audioDevice=audioDevice, type="input")
         self.audioDevices.append(ad)
         ad.grid(row=0, column=len(self.audioDevices), sticky="w")
         self.positionOut()
 
-    def addOutput(self, device):
-        ad = uiAudioDevice(master=self.devicesFrame, device=self.device, audioDevice=device)
+    def addOutput(self, audioDevice=None, id=None):
+        if device != None:
+            ad = uiAudioDevice(master=self.devicesFrame, device=self.device, audioDevice=audioDevice, type="output")
+        elif id != None:
+            dev = self.device.getDevice(id)
+            ad = uiAudioDevice(master=self.devicesFrame, device=self.device, audioDevice=dev, type="output")
+        else:
+            ad = uiAudioDevice(master=self.devicesFrame, device=self.device, type="output")
         self.outputDevices.append(ad)
         self.positionOut()
 
@@ -128,8 +129,10 @@ class ui(tk.Frame):
             pos+=1
 
 class uiAudioDevice(tk.Frame):
-    def __init__(self, master=None, audioDevice=None, device=None):
+    def __init__(self, master=None, audioDevice=None, device=None, type="input"):
         tk.Frame.__init__(self, master, width=100, height=300)
+
+        self.type = type
 
         self.volumeSize = 250
         self.prevAvg = [0, 0]
@@ -159,7 +162,10 @@ class uiAudioDevice(tk.Frame):
         self.volumeScale = tk.Scale(self, from_=100, to=0, orient="vertical")
         self.volumeScale.grid(row=1, column=1, sticky="w")
 
-        self.selectDevice = tk.OptionMenu(self, "Empty", tuple(self.device.deviceList))
+        # create dropdown based on type
+        self.selectDeviceValue = tk.StringVar()
+        self.selectDeviceValue.set("Empty")
+        self.selectDevice = tk.OptionMenu(self, self.selectDeviceValue, *[str(d.id) + " " + d.name for d in self.device.deviceList if d.getType() == self.type], command=self.changeDevice)
         self.selectDevice.grid(row=2, columnspan=2, sticky="ew")
 
         self.toggle = tk.Button(self, text="Enable/Disable", fg="black", command=self.toggleDevice)
@@ -167,9 +173,24 @@ class uiAudioDevice(tk.Frame):
         #self.toggle.pack(fill=tk.X)
 
         if (self.audioDevice != None):
-            self.title.config(text=self.audioDevice.name, width=20)
-            self.device.enableDevice(self.audioDevice.id)
-            self.audioDevice.streamCallback = self.onUpdate
+            self.setupDevice(self.audioDevice)
+
+    # device needs to change
+    def changeDevice(self, event):
+        if self.audioDevice != None:
+            self.device.disableDevice(self.audioDevice.id)
+        string = self.selectDeviceValue.get()
+        self.setupDevice(self.device.getDevice(int(string.split(" ")[0])))
+
+    def setupDevice(self, dev):
+        self.title.config(text=dev.name, width=20)
+        if self.type == "input":
+            self.device.enableDevice(dev.id)
+            dev.streamCallback = self.onUpdate
+        else:
+            self.device.setOutputDevice(dev.id)
+        self.audioDevice = dev
+
 
     def toggleDevice(self):
         self.audioDevice.active = not self.audioDevice.active
