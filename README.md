@@ -1,6 +1,6 @@
 # Open Sound Mixer
 
-![image](http://i.imgur.com/rXaX63h.png "osm")
+![image](http://i.imgur.com/NqH2mVH.gif "osm")
 
 Open Sound Mixer allows you to route multiple audio devices to one or more outputs. This program is for people who need to control their audio while streaming.
 
