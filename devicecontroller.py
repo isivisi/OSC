@@ -10,6 +10,8 @@ class device:
         self.active = True
         self.volume = 1;
 
+        self.streaming = False
+
         self.id = id
         self.name = deviceInfo['name'];
         self.hostapi = deviceInfo['hostapi']
@@ -23,6 +25,8 @@ class device:
 
         self.rawStream = sounddevice.RawStream()
         self.currRawData = []
+
+        self.out = None # will be output stream
 
         self.streamCallback = 0 # function to be called during stream
 
@@ -48,20 +52,32 @@ class device:
         except:
             return -100
 
-    def stream(self, out):
+    def stream(self):
         try:
-            sounddevice.default.channels = out.maxOutputChannels
-            self.rawStream = sounddevice.Stream(device=(self.id, out.id), samplerate=self.defaultSamplerate, channels=(self.maxInputChannels, out.maxOutputChannels), callback=self.callback, latency="low")
-            self.rawStream.start()
+            if (self.out != None):
+                sounddevice.default.channels = self.out.maxOutputChannels
+                self.rawStream = sounddevice.Stream(device=(self.id, self.out.id), samplerate=self.defaultSamplerate, channels=(self.maxInputChannels, self.out.maxOutputChannels), callback=self.callback, latency="low")
+                self.rawStream.start()
+                self.streaming = True
+                print("starting %s stream for output: %s" % (self.name, self.out.name,))
+            else:
+                print("Cannot start device stream, no output set")
         except sounddevice.PortAudioError as e:
             print("Port audio error for (" + self.name + ") " + str(e))
 
     # start a sounddevice stream in a new thread (this might not be needed anymore)
-    def startStream(self, out):
-        threading.Thread(target=self.stream, args=(out,)).start()
+    def startStream(self):
+        threading.Thread(target=self.stream).start()
 
     def stopStream(self):
         self.rawStream.stop()
+        self.streaming = False
+
+    def setOutput(self, out):
+        if self.streaming:
+            self.stopStream()
+        self.out = out
+        self.startStream()
 
     def getType(self):
         if (self.maxOutputChannels > 0):
@@ -74,9 +90,8 @@ class DeviceController:
     def __init__(self):
 
         self.deviceList = []
-        self.activeDevices = []
 
-        self.outputDevice = []
+        self.outputDevices = []
 
         self.initDevices()
 
@@ -84,15 +99,20 @@ class DeviceController:
         id = 0
         for dev in sounddevice.query_devices():
             print(str(id) + " " + str(dev))
-            self.deviceList.append(device(dev, id))
+            d = device(dev, id)
+            if d.getType() == "input":
+                self.deviceList.append(d)
+            else:
+                self.outputDevices.append(d)
             id += 1
-
+    '''
     def enableDevice(self, id):
         devList = [d for d in self.deviceList if d.id == id and d.getType() == "input"]
         for dev in devList:
             print(dev.name + "device enabled")
-            self.activeDevices.append(dev)
-            dev.startStream(self.outputDevice)
+            if (dev not in self.activeDevices):
+                self.activeDevices.append(dev)
+            dev.startStream()
 
     def disableDevice(self, id):
         devList = [d for d in self.activeDevices if d.id == id]
@@ -100,19 +120,26 @@ class DeviceController:
             dev.stopStream()
             self.activeDevices.remove(dev)
             print(dev.name + "disabled")
+    '''
 
     def getDevice(self, id):
         dlist = [d for d in self.deviceList if d.id == id]
         for dev in dlist:
             return dev
 
-    def setOutputDevice(self, id):
+    def getOutputDevice(self, id):
+        dlist = [d for d in self.outputDevices if d.id == id]
+        for dev in dlist:
+            return dev
+    '''
+    def addOutputDevice(self, id):
         devList = [d for d in self.deviceList if d.id == id and d.getType() == "output"]
         if (devList):
-            print(devList[0].name + " set to output device")
-            self.outputDevice = devList[0]
+            print(devList[0].name + " output added")
+            self.outputDevices.append(devList[0])
         else:
-            print("[error] id " + str(id) + " not found, output device not set")
+            print("[error] id " + str(id) + " not found, output device not added")
+    '''
 
     def getTotalCpuLoad(self):
         totalCpu = 0
