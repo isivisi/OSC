@@ -3,6 +3,7 @@
 
 import time
 import tkinter as tk
+import tkinter.font as font
 import threading
 from install import *
 pipimport("numpy", "numpy>=1.11.0")
@@ -37,8 +38,8 @@ def initUI(dc):
     app = ui(master=root, device=dc)
     app.master.title("Open Sound Mixer")
     #app.master.maxsize(1920, 720)
-    app.master.geometry('{}x{}'.format(1080, 375))
-    app.master.minsize(width=1080, height=375)
+    app.master.geometry('{}x{}'.format(720, 375))
+    app.master.minsize(width=500, height=375)
     app.mainloop()
 
 class ui(tk.Frame):
@@ -79,8 +80,7 @@ class ui(tk.Frame):
         #self.statusBar.grid(sticky="e")
 
         self.editMenu = tk.Menu(self.topBar)
-        self.editMenu.add_command(label="Add Input Device", command=self.addDevice)
-        self.editMenu.add_command(label="Add Output Device", command=self.addOutput)
+        self.editMenu.add_command(label="Add Device", command=self.addDevice)
         self.topBar.add_cascade(label="Edit", menu=self.editMenu)
 
         #self.quit = tk.Button(self.middleFrame, text="+", fg="black", command=self.addDevice)
@@ -104,11 +104,16 @@ class ui(tk.Frame):
     def exit(self):
         quit()
 
+    def closeDevice(self, dev):
+        self.audioDevices.remove(dev)
+        dev.grid_forget()
+        dev.destroy()
+
     # adds empty audio device to ui
     def addDevice(self, audioDevice=None):
-        ad = uiAudioDevice(master=self.devicesFrame, device=self.device, audioDevice=audioDevice, type="input")
+        ad = uiAudioDevice(master=self.devicesFrame, device=self.device, audioDevice=audioDevice, type="input", closeCall=self.closeDevice)
         self.audioDevices.append(ad)
-        ad.grid(row=0, column=len(self.audioDevices), sticky="w")
+        ad.grid(row=0, column=len(self.audioDevices), sticky="wn")
         self.positionOut()
 
     def addOutput(self, audioDevice=None, id=None):
@@ -121,17 +126,22 @@ class ui(tk.Frame):
             ad = uiAudioDevice(master=self.devicesFrame, device=self.device, type="output")
         self.outputDevices.append(ad)
         self.positionOut()
+        self.updateOutputLists()
 
     def positionOut(self):
         pos = 1
         for outdev in self.outputDevices:
-            outdev.grid(row=0, column=len(self.audioDevices) + pos)
+            outdev.grid(row=0, column=len(self.audioDevices) + pos, sticky="wn")
             pos+=1
 
-class uiAudioDevice(tk.Frame):
-    def __init__(self, master=None, audioDevice=None, device=None, type="input"):
-        tk.Frame.__init__(self, master, width=100, height=300)
+    def updateOutputLists(self):
+        for uiAudio in self.audioDevices:
+            uiAudio.setupOutputList()
 
+class uiAudioDevice(tk.Frame):
+    def __init__(self, master=None, audioDevice=None, device=None, type="input", closeCall=None):
+        tk.Frame.__init__(self, master, width=100, height=300)
+        self.closeCall = closeCall
         self.type = type
 
         self.volumeSize = 250
@@ -146,10 +156,12 @@ class uiAudioDevice(tk.Frame):
         self.setup()
 
     def setup(self):
-
-        self.title = tk.Label(self, text="Empty device")
-        self.title.grid(row=0)
-        #self.title.pack(side="left")
+        self.colors = {"output":"#5d8aa8", "input":"#5d8aa8"}
+        self.color = self.colors[self.type]
+        self.title = tk.Label(self, text=self.type, bg=self.color, height=1)
+        self.title.grid(row=0, column=0, sticky="ew")
+        self.closeButton = tk.Button(self, text="x", fg="black", bg=self.color, command=self.close, height=1, relief="flat", pady=0, border=1)
+        self.closeButton.grid(row=0, column=1, sticky="ew")
 
         # visual volume stuff
         self.volume = tk.Canvas(self, width=50, height=self.volumeSize)
@@ -159,7 +171,7 @@ class uiAudioDevice(tk.Frame):
         self.leftChannel = self.volume.create_rectangle(2, 1000, 26, self.volumeSize, fill="#66ff00")
         self.rightChannel = self.volume.create_rectangle(26, 1000, 50, self.volumeSize, fill="#66ff00")
 
-        self.volumeScale = tk.Scale(self, from_=100, to=0, orient="vertical")
+        self.volumeScale = tk.Scale(self, from_=100, to=0, orient="vertical", length=200, relief="sunken", sliderlength=10, showvalue=False)
         self.volumeScale.grid(row=1, column=1, sticky="w")
 
         # create dropdown based on type
@@ -167,33 +179,56 @@ class uiAudioDevice(tk.Frame):
         self.selectDeviceValue.set("Empty")
         self.selectDevice = tk.OptionMenu(self, self.selectDeviceValue, *[str(d.id) + " " + d.name for d in self.device.deviceList if d.getType() == self.type], command=self.changeDevice)
         self.selectDevice.grid(row=2, columnspan=2, sticky="ew")
+        self.selectDevice.config(width=8)
 
         self.toggle = tk.Button(self, text="Enable/Disable", fg="black", command=self.toggleDevice)
-        self.toggle.grid(row=3, columnspan=2)
+        self.toggle.grid(row=4, columnspan=2)
         #self.toggle.pack(fill=tk.X)
 
         if (self.audioDevice != None):
             self.setupDevice(self.audioDevice)
 
+        self.selectOutput = None
+        self.setupOutputList()
+
+    def setupOutputList(self):
+        if (self.audioDevice != None and self.type == "input"):
+            if (self.selectOutput != None):
+                self.selectOutput['menu'].delete(0, 'end')
+                for outputDev in [str(d.id) + " " + d.name for d in self.device.outputDevices if d.hostapi == self.audioDevice.hostapi]:
+                    self.selectOutput['menu'].add_command(label=outputDev, command=tk._setit(self.selectOutputValue, outputDev))
+            else:
+                self.selectOutputValue = tk.StringVar()
+                self.selectOutputValue.set("No Output")
+                self.selectOutput = tk.OptionMenu(self, self.selectOutputValue, *[str(d.id) + " " + d.name for d in self.device.outputDevices if d.hostapi == self.audioDevice.hostapi], command=self.changeOutput)
+                self.selectOutput.grid(row=3, columnspan=2, sticky="ew")
+                self.selectOutput.config(width=8)
+
     # device needs to change
     def changeDevice(self, event):
         if self.audioDevice != None:
-            self.device.disableDevice(self.audioDevice.id)
+            self.audioDevice.stopStream()
         string = self.selectDeviceValue.get()
         self.setupDevice(self.device.getDevice(int(string.split(" ")[0])))
+        self.setupOutputList()
+
+    def changeOutput(self, event):
+        if self.audioDevice != None:
+            string = self.selectOutputValue.get()
+            self.audioDevice.setOutput(self.device.getOutputDevice(int(string.split(" ")[0])))
 
     def setupDevice(self, dev):
-        self.title.config(text=dev.name, width=20)
-        if self.type == "input":
-            self.device.enableDevice(dev.id)
-            dev.streamCallback = self.onUpdate
-        else:
-            self.device.setOutputDevice(dev.id)
+        #self.title.config(text=dev.name, width=20)
+        dev.streamCallback = self.onUpdate
         self.audioDevice = dev
-
 
     def toggleDevice(self):
         self.audioDevice.active = not self.audioDevice.active
+
+    def close(self):
+        if (self.audioDevice != None):
+            self.audioDevice.stopStream()
+        self.closeCall(self)
 
     def onUpdate(self):
         if (self.audioDevice != None):
@@ -207,7 +242,7 @@ class uiAudioDevice(tk.Frame):
                     left.append(abs(value[0]))
                     right.append(abs(value[0]))
                 self.prevAvg = self.currAvg
-                self.currAvg = [(sum(left) / len(left)) * 10000, (sum(right) / len(right)) * 10000]
+                self.currAvg = [(sum(left) / len(left)) * 1000, (sum(right) / len(right)) * 1000]
                 self.updateCount = 0
             else:
                 left = lerp(self.prevAvg[0], self.currAvg[0], self.updateCount)
