@@ -1,6 +1,6 @@
 # Open Sound Mixer
 
-![image](http://i.imgur.com/NqH2mVH.gif "osm")
+![image](http://i.imgur.com/fqs1C5i.gif "osm")
 
 Open Sound Mixer allows you to route multiple audio devices to one or more outputs.
 
