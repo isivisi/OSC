@@ -1,0 +1,6 @@
+{
+  "name": "Opensoundmixer",
+  "tagline": "Open source audio mixer",
+  "body": "![image](http://i.imgur.com/fqs1C5i.gif \"osm\")\r\n\r\nOpen Sound Mixer allows you to route multiple audio devices to one or more outputs.\r\n\r\n## Download\r\n- [All Releases](https://github.com/isivisi/opensoundmixer/releases)\r\n\r\n### Dependencies\r\n- Python 3.5\r\n\r\n### Features\r\n- As many inputs as you want\r\n- Audio files as an input (WIP)\r\n\r\n### Contributing\r\n1. Fork it\r\n2. Check the issues tab and start working on a bug / enhancement\r\n3. Submit a pull request :D\r\n\r\n### License\r\n[GNU General public licence](https://github.com/isivisi/pybot/blob/master/LICENSE)\r\n",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}
