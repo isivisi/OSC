@@ -1,2 +1,2 @@
 @echo off
-nuitka --recurse-none osm.py
+nuitka --recurse-all --python-version=3.5 osm.py
