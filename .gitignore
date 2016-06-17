@@ -90,3 +90,9 @@ ENV/
 
 # idea
 .idea*
+
+#builds
+osm.build/
+osm.dist/
+python35.dll
+osm.exe
