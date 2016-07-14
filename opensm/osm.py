@@ -5,11 +5,12 @@ import time
 import tkinter as tk
 import tkinter.font as font
 import threading
-from install import *
-pipimport("numpy", "numpy>=1.11.0")
-pipimport("sounddevice", "sounddevice>=0.3.3")
+#pipimport("numpy", "numpy>=1.11.0")
+#pipimport("sounddevice", "sounddevice>=0.3.3")
+import numpy
+import sounddevice
 import sounddevice as sd
-from devicecontroller import *
+from opensm.devicecontroller import *
 
 def lerp(begin, end, time):
     return begin + time*(end-begin)
