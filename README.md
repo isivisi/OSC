@@ -16,6 +16,10 @@ Open Sound Mixer allows you to route multiple audio devices to one or more outpu
 - As many inputs as you want
 - Audio files as an input (WIP)
 
+### Install
+- `pip install opensm`
+- then just run with `opensm`
+
 ### Contributing
 
 1. Fork it
