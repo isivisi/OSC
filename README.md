@@ -1,5 +1,6 @@
 # Open Sound Mixer
 [![Build Status](https://travis-ci.org/isivisi/opensoundmixer.svg?branch=master)](https://travis-ci.org/isivisi/opensoundmixer)
+[![Code Health](https://landscape.io/github/isivisi/opensoundmixer/master/landscape.svg?style=flat)](https://landscape.io/github/isivisi/opensoundmixer/master)
 [![pip](https://img.shields.io/pypi/v/opensm.svg)](https://pypi.python.org/pypi/opensm)
 
 ![image](http://i.imgur.com/fqs1C5i.gif "osm")

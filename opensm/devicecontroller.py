@@ -1,9 +1,9 @@
 import sounddevice
 import threading
 import audioop
-import numpy as np
 
-duration = 5 # seconds
+duration = 5  # seconds
+
 
 class device:
     def __init__(self, deviceInfo, id):
@@ -26,9 +26,9 @@ class device:
         self.rawStream = sounddevice.RawStream()
         self.currRawData = []
 
-        self.out = None # will be output stream
+        self.out = None  # will be output stream
 
-        self.streamCallback = 0 # function to be called during stream
+        self.streamCallback = None  # function to be called during stream
 
     # audio callback
     def callback(self, indata, outdata, frames, time, status):
@@ -39,7 +39,7 @@ class device:
 
         self.currRawData = outdata
 
-        #if status:
+        # if status:
         #    print("[%s] frames: %s, status: %s, time: %s, status: %s" %(self.name, frames, time, status))
 
         if (self.streamCallback != 0):
@@ -56,7 +56,9 @@ class device:
         try:
             if (self.out != None):
                 sounddevice.default.channels = self.out.maxOutputChannels
-                self.rawStream = sounddevice.Stream(device=(self.id, self.out.id), samplerate=self.defaultSamplerate, channels=(self.maxInputChannels, self.out.maxOutputChannels), callback=self.callback, latency="low")
+                self.rawStream = sounddevice.Stream(device=(self.id, self.out.id), samplerate=self.defaultSamplerate,
+                                                    channels=(self.maxInputChannels, self.out.maxOutputChannels),
+                                                    callback=self.callback, latency="low")
                 self.rawStream.start()
                 self.streaming = True
                 print("starting %s stream for output: %s" % (self.name, self.out.name,))
@@ -85,6 +87,7 @@ class device:
         else:
             return "input"
 
+
 # A controller for all devices
 class DeviceController:
     def __init__(self):
@@ -105,6 +108,7 @@ class DeviceController:
             else:
                 self.outputDevices.append(d)
             id += 1
+
     '''
     def enableDevice(self, id):
         devList = [d for d in self.deviceList if d.id == id and d.getType() == "input"]
@@ -131,6 +135,7 @@ class DeviceController:
         dlist = [d for d in self.outputDevices if d.id == id]
         for dev in dlist:
             return dev
+
     '''
     def addOutputDevice(self, id):
         devList = [d for d in self.deviceList if d.id == id and d.getType() == "output"]
