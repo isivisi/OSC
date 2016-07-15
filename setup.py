@@ -7,11 +7,11 @@ setup(
     author_email='jiannandrea@gmail.com',
     url='http://github.com/isivisi/opensoundmixer',
     install_requires=[
-        'requests',
+        'sounddevice',
         'numpy'
     ],
     include_package_data=True,
-    version='0.1.0',
+    version='0.1.1',
     packages=['opensm'],
     zip_safe=False,
     license='GNU',
