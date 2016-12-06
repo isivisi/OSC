@@ -3,6 +3,7 @@
 
 import time
 import tkinter as tk
+import tkinter.filedialog as filedialog
 import tkinter.font as font
 import threading
 # pipimport("numpy", "numpy>=1.11.0")
@@ -103,7 +104,12 @@ class ui(tk.Frame):
         print("open project")
 
     def saveSetup(self):
-        print("save project")
+        f = filedialog.asksaveasfile(mode='w', defaultextension='.osm')
+        if f is None:
+            return
+
+        f.write("")
+        f.close()
 
     def exit(self):
         quit()
