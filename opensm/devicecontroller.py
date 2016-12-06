@@ -87,6 +87,12 @@ class device:
         else:
             return "input"
 
+    def __repr__(self):
+        return "<Audio Device %s %s>" % (self.name, self.id)
+
+    def __str__(self):
+        return "DEVICE [%s %s %s %s]\n" % (self.id, self.out.id, self.volume, self.active)
+
 
 # A controller for all devices
 class DeviceController:
@@ -100,9 +106,10 @@ class DeviceController:
 
     def initDevices(self):
         id = 0
+        print("Gathering devices...")
         for dev in sounddevice.query_devices():
-            print(str(id) + " " + str(dev))
             d = device(dev, id)
+            print(repr(d))
             if d.getType() == "input":
                 self.deviceList.append(d)
             else:

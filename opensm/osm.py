@@ -28,6 +28,7 @@ def main():
     device = dc
 
     # ui
+    print("Starting UI thread...")
     threading.Thread(target=initUI, args=(dc,)).start()
 
     while 1:
@@ -107,6 +108,9 @@ class ui(tk.Frame):
         f = filedialog.asksaveasfile(mode='w', defaultextension='.osm')
         if f is None:
             return
+
+        for uiDev in self.audioDevices:
+            f.write(str(uiDev.audioDevice))
 
         f.write("")
         f.close()
