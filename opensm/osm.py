@@ -68,6 +68,11 @@ class ui(tk.Frame):
         self.devicesFrame = tk.Frame(self, relief='sunken').grid(row=0)
         # self.bottomFrame = tk.Frame(self).grid(row=1)
 
+    def resetDevices(self):
+        while len(self.audioDevices) > 0:
+            for uiDev in self.audioDevices:
+                uiDev.close()
+
     def createWidgets(self):
 
         # top bar
@@ -99,20 +104,38 @@ class ui(tk.Frame):
         time.sleep(1)
 
     def newSetup(self):
-        print("new project")
+        self.resetDevices()
 
     def openSetup(self):
-        print("open project")
+        print("Loading osm file...")
+        self.resetDevices()
+        filename = filedialog.askopenfilename(filetypes=(("OSM Files", "*.osm"),("All Files", "*.*")))
+        with open(filename) as f:
+            for line in f:
+                # DEVICE[%s % s % s % s]
+                id, outid, vol, active = line.replace("DEVICE [", "").replace("]\n", "").split(' ')
+                foundDevice = [dev for dev in self.device.deviceList if dev.id == int(id)]
+                if len(foundDevice) > 0:
+                    print("Found device from save: " + repr(foundDevice[0]))
+                    foundDevice[0].volume = float(vol)
+                    foundDevice[0].active = bool(active)
+                    uid = self.addDevice(audioDevice=foundDevice[0])
+
+
+
+
+
+
 
     def saveSetup(self):
         f = filedialog.asksaveasfile(mode='w', defaultextension='.osm')
         if f is None:
             return
 
+        print("Saving osm file...")
         for uiDev in self.audioDevices:
+            print(str(uiDev.audioDevice))
             f.write(str(uiDev.audioDevice))
-
-        f.write("")
         f.close()
 
     def exit(self):
@@ -130,6 +153,7 @@ class ui(tk.Frame):
         self.audioDevices.append(ad)
         ad.grid(row=0, column=len(self.audioDevices), sticky="wn")
         self.positionOut()
+        return ad
 
     def addOutput(self, audioDevice=None, id=None):
         if device != None:
