@@ -7,8 +7,9 @@ setup(
     author_email='jiannandrea@gmail.com',
     url='http://github.com/isivisi/opensoundmixer',
     install_requires=[
-        'sounddevice',
-        'numpy'
+        'requests',
+        'numpy',
+        'jsonpickle'
     ],
     include_package_data=True,
     version='0.1.1',

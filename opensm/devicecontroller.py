@@ -1,6 +1,7 @@
 import sounddevice
 import threading
 import audioop
+import jsonpickle
 
 duration = 5  # seconds
 
@@ -92,6 +93,7 @@ class device:
 
     def __str__(self):
         return "DEVICE [%s %s %s %s]\n" % (self.id, self.out.id, self.volume, self.active)
+        #return jsonpickle.encode(self) TODO SOON
 
 
 # A controller for all devices

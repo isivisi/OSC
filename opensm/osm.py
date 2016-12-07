@@ -107,7 +107,6 @@ class ui(tk.Frame):
         self.resetDevices()
 
     def openSetup(self):
-        print("Loading osm file...")
         self.resetDevices()
         filename = filedialog.askopenfilename(filetypes=(("OSM Files", "*.osm"),("All Files", "*.*")))
         with open(filename) as f:
@@ -116,16 +115,18 @@ class ui(tk.Frame):
                 id, outid, vol, active = line.replace("DEVICE [", "").replace("]\n", "").split(' ')
                 foundDevice = [dev for dev in self.device.deviceList if dev.id == int(id)]
                 if len(foundDevice) > 0:
-                    print("Found device from save: " + repr(foundDevice[0]))
-                    foundDevice[0].volume = float(vol)
-                    foundDevice[0].active = bool(active)
-                    uid = self.addDevice(audioDevice=foundDevice[0])
-
-
-
-
-
-
+                    foundDevice = foundDevice[0] # because it always returns list
+                    print("Found device from save: " + repr(foundDevice))
+                    foundOutput = [out for out in self.device.outputDevices if out.id == int(outid)]
+                    if len(foundOutput) > 0:
+                        foundDevice.out = foundOutput[0]
+                    foundDevice.volume = float(vol)
+                    foundDevice.active = bool(active)
+                    uid = self.addDevice(audioDevice=foundDevice)
+                    #uid.setupDevice(foundDevice)
+                    if foundDevice.active:
+                        foundDevice.startStream()
+                    uid.refresh()
 
     def saveSetup(self):
         f = filedialog.asksaveasfile(mode='w', defaultextension='.osm')
@@ -230,10 +231,18 @@ class uiAudioDevice(tk.Frame):
         # self.toggle.pack(fill=tk.X)
 
         if (self.audioDevice != None):
+            self.volumeScale.set(self.audioDevice.volume * 100)
             self.setupDevice(self.audioDevice)
 
         self.selectOutput = None
         self.setupOutputList()
+
+    def refresh(self):
+        if self.audioDevice != None:
+            self.selectDeviceValue.set([str(d.id) + " " + d.name for d in self.device.deviceList if d == self.audioDevice])
+            if (self.audioDevice.out != None):
+                self.setupOutputList()
+                self.selectOutputValue.set("%s %s" %(self.audioDevice.out.id, self.audioDevice.out.name))
 
     def setupOutputList(self):
         if (self.audioDevice != None and self.type == "input"):
@@ -275,7 +284,10 @@ class uiAudioDevice(tk.Frame):
 
     def close(self):
         if (self.audioDevice != None):
-            self.audioDevice.stopStream()
+            try:
+                self.audioDevice.stopStream()
+            except sounddevice.PortAudioError as e:
+                print("Port audio error" + str(e))
         self.closeCall(self)
 
     def onUpdate(self):
