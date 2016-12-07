@@ -3,6 +3,7 @@
 
 import time
 import tkinter as tk
+import tkinter.filedialog as filedialog
 import tkinter.font as font
 import threading
 # pipimport("numpy", "numpy>=1.11.0")
@@ -27,6 +28,7 @@ def main():
     device = dc
 
     # ui
+    print("Starting UI thread...")
     threading.Thread(target=initUI, args=(dc,)).start()
 
     while 1:
@@ -66,6 +68,11 @@ class ui(tk.Frame):
         self.devicesFrame = tk.Frame(self, relief='sunken').grid(row=0)
         # self.bottomFrame = tk.Frame(self).grid(row=1)
 
+    def resetDevices(self):
+        while len(self.audioDevices) > 0:
+            for uiDev in self.audioDevices:
+                uiDev.close()
+
     def createWidgets(self):
 
         # top bar
@@ -97,13 +104,40 @@ class ui(tk.Frame):
         time.sleep(1)
 
     def newSetup(self):
-        print("new project")
+        self.resetDevices()
 
     def openSetup(self):
-        print("open project")
+        self.resetDevices()
+        filename = filedialog.askopenfilename(filetypes=(("OSM Files", "*.osm"),("All Files", "*.*")))
+        with open(filename) as f:
+            for line in f:
+                # DEVICE[%s % s % s % s]
+                id, outid, vol, active = line.replace("DEVICE [", "").replace("]\n", "").split(' ')
+                foundDevice = [dev for dev in self.device.deviceList if dev.id == int(id)]
+                if len(foundDevice) > 0:
+                    foundDevice = foundDevice[0] # because it always returns list
+                    print("Found device from save: " + repr(foundDevice))
+                    foundOutput = [out for out in self.device.outputDevices if out.id == int(outid)]
+                    if len(foundOutput) > 0:
+                        foundDevice.out = foundOutput[0]
+                    foundDevice.volume = float(vol)
+                    foundDevice.active = bool(active)
+                    uid = self.addDevice(audioDevice=foundDevice)
+                    #uid.setupDevice(foundDevice)
+                    if foundDevice.active:
+                        foundDevice.startStream()
+                    uid.refresh()
 
     def saveSetup(self):
-        print("save project")
+        f = filedialog.asksaveasfile(mode='w', defaultextension='.osm')
+        if f is None:
+            return
+
+        print("Saving osm file...")
+        for uiDev in self.audioDevices:
+            print(str(uiDev.audioDevice))
+            f.write(str(uiDev.audioDevice))
+        f.close()
 
     def exit(self):
         quit()
@@ -120,6 +154,7 @@ class ui(tk.Frame):
         self.audioDevices.append(ad)
         ad.grid(row=0, column=len(self.audioDevices), sticky="wn")
         self.positionOut()
+        return ad
 
     def addOutput(self, audioDevice=None, id=None):
         if device != None:
@@ -196,10 +231,18 @@ class uiAudioDevice(tk.Frame):
         # self.toggle.pack(fill=tk.X)
 
         if (self.audioDevice != None):
+            self.volumeScale.set(self.audioDevice.volume * 100)
             self.setupDevice(self.audioDevice)
 
         self.selectOutput = None
         self.setupOutputList()
+
+    def refresh(self):
+        if self.audioDevice != None:
+            self.selectDeviceValue.set([str(d.id) + " " + d.name for d in self.device.deviceList if d == self.audioDevice])
+            if (self.audioDevice.out != None):
+                self.setupOutputList()
+                self.selectOutputValue.set("%s %s" %(self.audioDevice.out.id, self.audioDevice.out.name))
 
     def setupOutputList(self):
         if (self.audioDevice != None and self.type == "input"):
@@ -241,7 +284,10 @@ class uiAudioDevice(tk.Frame):
 
     def close(self):
         if (self.audioDevice != None):
-            self.audioDevice.stopStream()
+            try:
+                self.audioDevice.stopStream()
+            except sounddevice.PortAudioError as e:
+                print("Port audio error" + str(e))
         self.closeCall(self)
 
     def onUpdate(self):
