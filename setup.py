@@ -12,7 +12,7 @@ setup(
         'jsonpickle'
     ],
     include_package_data=True,
-    version='0.1.1',
+    version='0.1.2',
     packages=['opensm'],
     zip_safe=False,
     license='GNU',
