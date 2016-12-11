@@ -301,7 +301,7 @@ class uiAudioDevice(tk.Frame):
             time.sleep(0.000015)
             if self.audioDevice != None:
                 #if self.peakCurrAvg > self.peakPrevAvg and self.rmsCurrAvg > self.rmsPrevAvg:
-                self.updateCount += 0.5
+                self.updateCount += 0.05
 
                 # take a snapshot of the audio peak and rms
                 if self.updateCount >= 1:
