@@ -1,6 +1,7 @@
 import sounddevice
 import threading
 import audioop
+from numpy import mean, sqrt, square, amax
 import jsonpickle
 
 duration = 5  # seconds
@@ -52,6 +53,14 @@ class device:
             return audioop.avg(self.currRawData, 1)
         except:
             return -100
+
+    # get the root mean square
+    def getRMS(self, channel):
+        return sqrt(mean(square(self.currRawData[channel])))
+
+    # get the highest point in waveform
+    def getPeak(self, channel):
+        return amax(self.currRawData[channel])
 
     def stream(self):
         try:
