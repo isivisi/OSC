@@ -6,9 +6,6 @@ import tkinter as tk
 import tkinter.filedialog as filedialog
 import tkinter.font as font
 import threading
-# pipimport("numpy", "numpy>=1.11.0")
-# pipimport("sounddevice", "sounddevice>=0.3.3")
-import numpy
 import math
 import sounddevice as sd
 from opensm.devicecontroller import *
@@ -20,7 +17,6 @@ def lerp(begin, end, time):
 def main():
     print("Starting osm")
 
-    numpy.set_printoptions(suppress=True)
     # audio engine
     sd.default.samplerate = 44100
     # sd.default.device = "digital output"
@@ -187,6 +183,7 @@ class uiAudioDevice(tk.Frame):
         self.type = type
 
         self.volumeSize = 250
+        # todo: represent graph logarithmically
         #self.logspace = numpy.logspace(start=numpy.log10(1.0), stop=numpy.log10(self.volumeSize), num=self.volumeSize)
         self.peakCurrAvg = [0, 0]
         self.rmsCurrAvg = [0, 0]
