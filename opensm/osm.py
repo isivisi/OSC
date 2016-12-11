@@ -9,6 +9,7 @@ import threading
 # pipimport("numpy", "numpy>=1.11.0")
 # pipimport("sounddevice", "sounddevice>=0.3.3")
 import numpy
+import math
 import sounddevice as sd
 from opensm.devicecontroller import *
 
@@ -16,10 +17,10 @@ from opensm.devicecontroller import *
 def lerp(begin, end, time):
     return begin + time * (end - begin)
 
-
 def main():
     print("Starting osm")
 
+    numpy.set_printoptions(suppress=True)
     # audio engine
     sd.default.samplerate = 44100
     # sd.default.device = "digital output"
@@ -186,10 +187,10 @@ class uiAudioDevice(tk.Frame):
         self.type = type
 
         self.volumeSize = 250
-        self.prevAvg = [0, 0]
-        self.currAvg = [0, 0]
+        #self.logspace = numpy.logspace(start=numpy.log10(1.0), stop=numpy.log10(self.volumeSize), num=self.volumeSize)
+        self.peakCurrAvg = [0, 0]
+        self.rmsCurrAvg = [0, 0]
         self.updateCount = 0
-
         # self.pack(side="left")
         self.audioDevice = audioDevice
         self.device = device
@@ -210,8 +211,11 @@ class uiAudioDevice(tk.Frame):
         self.volume.grid(row=1, column=0)
         self.volume.create_rectangle(2, 0, 26, self.volumeSize, fill="#d3d3d3")
         self.volume.create_rectangle(26, 0, 50, self.volumeSize, fill="#d3d3d3")
-        self.leftChannel = self.volume.create_rectangle(2, 1000, 26, self.volumeSize, fill="#66ff00")
-        self.rightChannel = self.volume.create_rectangle(26, 1000, 50, self.volumeSize, fill="#66ff00")
+        self.peakLeftChannel = self.volume.create_rectangle(2, 1000, 26, self.volumeSize, fill="#66ff00")
+        self.peakRightChannel = self.volume.create_rectangle(26, 1000, 50, self.volumeSize, fill="#66ff00")
+
+        self.rmsLeftChannel = self.volume.create_rectangle(2, 1000, 26, self.volumeSize, fill="#3D9900")
+        self.rmsRightChannel = self.volume.create_rectangle(26, 1000, 50, self.volumeSize, fill="#3D9900")
 
         self.volumeScale = tk.Scale(self, from_=100, to=0, orient="vertical", length=200, relief="sunken",
                                     sliderlength=10, showvalue=False)
@@ -236,6 +240,9 @@ class uiAudioDevice(tk.Frame):
 
         self.selectOutput = None
         self.setupOutputList()
+
+        print("Starting uiAudioDevice thread...")
+        threading.Thread(target=self.updateLoop).start()
 
     def refresh(self):
         if self.audioDevice != None:
@@ -290,30 +297,71 @@ class uiAudioDevice(tk.Frame):
                 print("Port audio error" + str(e))
         self.closeCall(self)
 
+    def updateLoop(self):
+        snapshots = []
+        currentPosition = [0, 0, 0, 0]
+        while 1:
+            time.sleep(0.00015)
+            if self.audioDevice != None:
+                #if self.peakCurrAvg > self.peakPrevAvg and self.rmsCurrAvg > self.rmsPrevAvg:
+                self.updateCount += 0.5
+
+                # take a snapshot
+                if self.updateCount >= 1:
+                    snapshot = [self.peakCurrAvg[0], self.peakCurrAvg[1], self.rmsCurrAvg[0], self.rmsCurrAvg[1]]
+                    snapshots.append(snapshot)
+                    self.updateCount = 0
+
+                # only 2 snapshots required
+                if len(snapshots) > 2:
+                    snapshots.pop(0)
+
+                if len(snapshots) == 2:
+                    peak = [lerp(snapshots[0][0], snapshots[1][0], self.updateCount),
+                            lerp(snapshots[0][1], snapshots[1][1], self.updateCount)]
+                    rms = [lerp(snapshots[0][2], snapshots[1][2], self.updateCount),
+                            lerp(snapshots[0][3], snapshots[1][3], self.updateCount)]
+
+                    if peak[0] > currentPosition[0]:
+                        currentPosition = [peak[0], peak[1], rms[0], rms[1]]
+                        self.moveTowards(self.peakLeftChannel, self.peakRightChannel, peak[0], peak[1])
+                        self.moveTowards(self.rmsLeftChannel, self.rmsRightChannel, rms[0], rms[1])
+                    else:
+                        currentPosition = [max(0, x - 0.3) for x in currentPosition]
+                        self.moveTowards(self.peakLeftChannel, self.peakRightChannel, currentPosition[0], currentPosition[1])
+                        self.moveTowards(self.rmsLeftChannel, self.rmsRightChannel, currentPosition[2], currentPosition[2])
+
+    #todo move this to device
     def onUpdate(self):
         if (self.audioDevice != None):
             self.audioDevice.volume = self.volumeScale.get() * 0.01
             # avg = -self.audioDevice.getDeviceAvg() * 10
-            self.updateCount += 0.3
-            if (self.updateCount >= 1):
-                left = []
-                right = []
-                for value in self.audioDevice.currRawData:
-                    left.append(abs(value[0]))
-                    right.append(abs(value[0]))
-                self.prevAvg = self.currAvg
-                self.currAvg = [(sum(left) / len(left)) * 1000, (sum(right) / len(right)) * 1000]
-                self.updateCount = 0
-            else:
-                left = lerp(self.prevAvg[0], self.currAvg[0], self.updateCount)
-                right = lerp(self.prevAvg[1], self.currAvg[1], self.updateCount)
-                self.moveTowards(left, right)
+            left = []
+            right = []
+            rmsl = []
+            rmsr = []
+            #for value in self.audioDevice.currRawData:
+            left.append(abs(self.audioDevice.getPeak(0)))
+            right.append(abs(self.audioDevice.getPeak(1)))
 
-    def moveTowards(self, left, right):
-        # self.volume.delete(self.leftChannel)
-        # self.volume.delete(self.rightChannel)
-        self.volume.coords(self.leftChannel, 2, self.volumeSize - left, 26, self.volumeSize)
-        self.volume.coords(self.rightChannel, 26, self.volumeSize - right, 50, self.volumeSize)
+            rmsl.append(abs(self.audioDevice.getRMS(0)))
+            rmsr.append(abs(self.audioDevice.getRMS(1)))
+
+            # calculate the average to interpolate to
+            self.peakCurrAvg = [(sum(left) / len(left)), (sum(right) / len(right))]
+            self.rmsCurrAvg = [(sum(rmsl) / len(rmsl)), (sum(rmsr) / len(rmsr))]
+
+            # apply a range to the values so they fit
+            # (maxAllowed - minAllowed) * (unscaledN - min) / (max - min) + minAllowed
+            self.peakCurrAvg = [(self.volumeSize - 0) * (self.peakCurrAvg[0] - 0) / (1 - 0) + 0, (self.volumeSize - 0) * (self.peakCurrAvg[1] - 0) / (1 - 0) + 0]
+            self.rmsCurrAvg = [(self.volumeSize - 0) * (self.rmsCurrAvg[0] - 0) / (1 - 0) + 0, (self.volumeSize - 0) * (self.rmsCurrAvg[1] - 0) / (1 - 0) + 0]
+
+    def moveTowards(self, leftRect, rightRect, leftVal, rightVal):
+        leftVal = int(math.ceil(leftVal))
+        rightVal = int(math.ceil(rightVal))
+        #print(self.logspace[max(0, leftVal-1)])
+        self.volume.coords(leftRect, 2, self.volumeSize - leftVal, 26, self.volumeSize)
+        self.volume.coords(rightRect, 26, self.volumeSize - rightVal, 50, self.volumeSize)
 
     def setDevice(self, id):
         devs = self.device.getDevice(id)
