@@ -301,33 +301,40 @@ class uiAudioDevice(tk.Frame):
         snapshots = []
         currentPosition = [0, 0, 0, 0]
         while 1:
-            time.sleep(0.00015)
+            time.sleep(0.000015)
             if self.audioDevice != None:
                 #if self.peakCurrAvg > self.peakPrevAvg and self.rmsCurrAvg > self.rmsPrevAvg:
                 self.updateCount += 0.5
 
-                # take a snapshot
+                # take a snapshot of the audio peak and rms
                 if self.updateCount >= 1:
                     snapshot = [self.peakCurrAvg[0], self.peakCurrAvg[1], self.rmsCurrAvg[0], self.rmsCurrAvg[1]]
                     snapshots.append(snapshot)
                     self.updateCount = 0
 
-                # only 2 snapshots required
+                # only 2 snapshots required to interpolate between
                 if len(snapshots) > 2:
                     snapshots.pop(0)
 
                 if len(snapshots) == 2:
+                    # interpolate from snapshot1 to snapshot 2
                     peak = [lerp(snapshots[0][0], snapshots[1][0], self.updateCount),
                             lerp(snapshots[0][1], snapshots[1][1], self.updateCount)]
                     rms = [lerp(snapshots[0][2], snapshots[1][2], self.updateCount),
                             lerp(snapshots[0][3], snapshots[1][3], self.updateCount)]
 
-                    if peak[0] > currentPosition[0]:
+                    # if any new values are larger than the current then lerp to it, else slowly drop visuals
+                    if peak[0] > currentPosition[0] or peak[1] > currentPosition[1] or rms[0] > currentPosition[2] or rms[1] > currentPosition[3]:
                         currentPosition = [peak[0], peak[1], rms[0], rms[1]]
+                        # actually set the position for the visuals
                         self.moveTowards(self.peakLeftChannel, self.peakRightChannel, peak[0], peak[1])
                         self.moveTowards(self.rmsLeftChannel, self.rmsRightChannel, rms[0], rms[1])
                     else:
+                        # slowly lower values
                         currentPosition = [max(0, x - 0.3) for x in currentPosition]
+                        currentPosition[0] -= 0.1
+                        currentPosition[1] -= 0.1
+                        # actually set the position for the visuals
                         self.moveTowards(self.peakLeftChannel, self.peakRightChannel, currentPosition[0], currentPosition[1])
                         self.moveTowards(self.rmsLeftChannel, self.rmsRightChannel, currentPosition[2], currentPosition[2])
 
