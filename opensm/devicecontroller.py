@@ -1,18 +1,52 @@
 import sounddevice
 import threading
 import audioop
+import pyaudio
 from numpy import mean, sqrt, square, amax
-import jsonpickle
 
 duration = 5  # seconds
 
-
-class device:
-    def __init__(self, deviceInfo, id):
+class AudioIODev:
+    def __init__(self):
         self.active = True
-        self.volume = 1;
-
+        self.volume = 1
         self.streaming = False
+        self.out = None
+
+    def getRMS(self):
+        raise NotImplementedError("Cannot call abstract method")
+
+    def getPeak(self):
+        raise NotImplementedError("Cannot call abstract method")
+
+    def startStream(self):
+        raise NotImplementedError("Cannot call abstract method")
+
+    def stopStream(self):
+        raise NotImplementedError("Cannot call abstract method")
+
+    def setOutput(self, out):
+        raise NotImplementedError("Cannot call abstract method")
+
+
+class audioFileDevice(AudioIODev):
+    def __init__(self, file):
+        super().__init__()
+
+        self.chunk = 1024
+
+        self.audio = pyaudio.wave.open(file, 'rb')
+        self.pAudio = pyaudio.PyAudio()
+        self.audioStream = self.pAudio.open(format=p.get_format_from_width(self.audio.getsampwidth()),
+                                            channels=self.audio.getnchannels(),
+                                            rate=wf.getframerate(),
+                                            output=True)
+        self.audioData = self.audio.readframes(self.chunk)
+
+
+class device(AudioIODev):
+    def __init__(self, deviceInfo, id):
+        super().__init__()
 
         self.id = id
         self.name = deviceInfo['name'];
